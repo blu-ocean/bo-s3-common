@@ -1,1 +1,181 @@
-# bo-s3-common
+# AWS S3 bucket Terraform module
+
+Terraform module which creates S3 bucket on AWS with all (or almost all) features provided by Terraform AWS provider. It also supports bulk creation. Kindly check the example for its usage.
+
+This type of resources are supported:
+
+* [S3 Bucket](https://www.terraform.io/docs/providers/aws/r/s3_bucket.html)
+* [S3 Bucket Policy](https://www.terraform.io/docs/providers/aws/r/s3_bucket_policy.html)
+
+These features of S3 bucket configurations are supported:
+
+- static web-site hosting
+- access logging
+- versioning
+- CORS
+- lifecycle rules
+- server-side encryption
+- object locking
+- Cross-Region Replication (CRR)
+- ELB log delivery bucket policy
+
+## Terraform versions
+
+Terraform 0.12 and above are supported.
+
+## Usage
+
+### Private bucket with versioning enabled
+
+These example are to be referred in connection with bulk creation as module requires array/list of custom objects - each with defined inputs (mentioned in input section). 
+
+```hcl
+module "s3_bucket" {
+  source = "{source}"
+
+  bucket = "my-s3-bucket"
+  acl    = "private"
+
+  versioning = {
+    enabled = true
+  }
+
+}
+```
+
+### Bucket with ELB access log delivery policy attached
+
+```hcl
+module "s3_bucket_for_logs" {
+  source = "{source}"
+
+  bucket = "my-s3-bucket-for-logs"
+  acl    = "log-delivery-write"
+
+  # Allow deletion of non-empty bucket
+  force_destroy = true
+
+  attach_elb_log_delivery_policy = true
+}
+```
+#####################################
+# Create S3 bucket with version enabled
+#####################################
+terraform {
+   source = "git::https://bitbucket.sdlc.toyota.com/scm/dspe/tf-aws-s3.git"
+}
+
+dependency "tags" {
+  config_path = "../../common/tags"
+}
+
+inputs = {
+  tags = dependency.tags.outputs.tags
+  s3_bucket        = "dxip-dev-sample"
+  acl           = "private"
+  versioning    = {
+    enabled = true
+  }
+
+}
+
+###########################################################
+# Create S3 bucket with version and Static web enabled 
+###########################################################
+terraform {
+   source = "git::https://bitbucket.sdlc.toyota.com/scm/dspe/tf-aws-s3.git"
+}
+
+dependency "tags" {
+  config_path = "../../common/tags"
+}
+
+inputs = {
+  tags = dependency.tags.outputs.tags
+  s3_bucket        = "dxip-dev-sample"
+  acl           = "private"
+  versioning    = {
+    enabled = true
+  }
+  website = {
+    index_document = "index.html"
+    error_document = "error.html"
+    routing_rules = jsonencode([{
+      Condition : {
+        KeyPrefixEquals : "docs/"
+      },
+      Redirect : {
+        ReplaceKeyPrefixWith : "documents/"
+      }
+    }])
+
+  }
+
+}
+## Conditional creation
+
+Sometimes you need to have a way to create S3 resources conditionally but Terraform does not allow to use `count` inside `module` block, so the solution is to specify argument `create_bucket`.
+
+```hcl
+# This S3 bucket will not be created
+module "s3_bucket" {
+  source = "{source}"
+
+  create_bucket = false
+  # ... omitted
+}
+```
+
+<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| terraform | >= 0.12.7, < 0.14 |
+| aws | >= 2.68, < 4.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| aws | >= 2.68, < 4.0 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| acceleration\_status | (Optional) Sets the accelerate configuration of an existing bucket. Can be Enabled or Suspended. | `string` | `null` | no |
+| acl | (Optional) The canned ACL to apply. Defaults to 'private'. | `string` | `"private"` | no |
+| attach\_policy | Controls if S3 bucket should have bucket policy attached (set to `true` to use value of `policy` as bucket policy) | `bool` | `false` | no |
+| attach\_public\_policy | Controls if a user defined public bucket policy will be attached (set to `false` to allow upstream to apply defaults to the bucket) | `bool` | `true` | no |
+| block\_public\_acls | Whether Amazon S3 should block public ACLs for this bucket. | `bool` | `false` | no |
+| block\_public\_policy | Whether Amazon S3 should block public bucket policies for this bucket. | `bool` | `false` | no |
+| s3_bucket | (Optional, Forces new resource) The name of the bucket. If omitted, Terraform will assign a random, unique name. | `string` | `null` | no |
+| bucket\_prefix | (Optional, Forces new resource) Creates a unique bucket name beginning with the specified prefix. Conflicts with bucket. | `string` | `null` | no |
+| cors\_rule | List of maps containing rules for Cross-Origin Resource Sharing. | `list(any)` | `[]` | no |
+| create\_bucket | Controls if S3 bucket should be created | `bool` | `true` | no |
+| force\_destroy | (Optional, Default:false ) A boolean that indicates all objects should be deleted from the bucket so that the bucket can be destroyed without error. These objects are not recoverable. | `bool` | `false` | no |
+| ignore\_public\_acls | Whether Amazon S3 should ignore public ACLs for this bucket. | `bool` | `false` | no |
+| lifecycle\_rule | List of maps containing configuration of object lifecycle management. | `any` | `[]` | no |
+| logging | Map containing access bucket logging configuration. | `map(string)` | `{}` | no |
+| object\_lock\_configuration | Map containing S3 object locking configuration. | `any` | `{}` | no |
+| policy | (Optional) A valid bucket policy JSON document. Note that if the policy document is not specific enough (but still valid), Terraform may view the policy as constantly changing in a terraform plan. In this case, please make sure you use the verbose/specific version of the policy. For more information about building AWS IAM policy documents with Terraform, see the AWS IAM Policy Document Guide. | `string` | `null` | no |
+| replication\_configuration | Map containing cross-region replication configuration. | `any` | `{}` | no |
+| request\_payer | (Optional) Specifies who should bear the cost of Amazon S3 data transfer. Can be either BucketOwner or Requester. By default, the owner of the S3 bucket would incur the costs of any data transfer. See Requester Pays Buckets developer guide for more information. | `string` | `null` | no |
+| restrict\_public\_buckets | Whether Amazon S3 should restrict public bucket policies for this bucket. | `bool` | `false` | no |
+| server\_side\_encryption\_configuration | Map containing server-side encryption configuration. | `any` | `{}` | no |
+| tags | (Optional) A mapping of tags to assign to the bucket. | `map(string)` | `{}` | no |
+| versioning | Map containing versioning configuration. | `map(string)` | `{}` | no |
+| website | Map containing static web-site hosting or redirect configuration. | `map(string)` | `{}` | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| bucket\_arns | The ARN of the bucket(s). Will be of format arn:aws:s3:::bucketname. |
+| bucket\ids | The name of the bucket(s) |
+
+| bucket\_website\_endpoints\_domains | The domain(s) of the website endpoint, if the bucket is configured with a website. If not, this will be an empty string. This is used to create Route 53 alias records. |
+| bucket\_website\_endpoints | The website endpoint(s), if the bucket is configured with a website. If not, this will be an empty string. |
+
+<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
